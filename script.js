@@ -1,5 +1,22 @@
 const { dia, shapes, highlighters } = joint;
 
+const head = document.head || document.getElementsByTagName('head')[0];
+const style = document.createElement('style');
+style.type = 'text/css';
+style.appendChild(document.createTextNode(`
+    .animated-dash {
+        stroke-dasharray: 10,10;
+        stroke-dashoffset: 20;
+        animation: dash 1s linear infinite;
+    }
+    @keyframes dash {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+`));
+head.appendChild(style);
+
 // Paper
 
 const paperContainer = document.getElementById("paper-container");
@@ -53,14 +70,42 @@ paper.svg.prepend(
     `)
 );
 
-function element(x, y) {
+function element(x, y, text) {
   const el = new shapes.standard.Rectangle({
     position: { x, y },
     size: { width: 100, height: 60 },
     attrs: {
       label: {
-        text: `Node ${graph.getElements().length + 1}`,
+        text: text,
         fontFamily: "sans-serif"
+      }
+    },
+    ports: {
+      groups: {
+        'left': {
+          position: {
+            name: 'left'
+          },
+          attrs: {
+            circle: {
+              fill: '#000000',
+              r: 5,
+              magnet: true
+            }
+          }
+        },
+        'right': {
+          position: {
+            name: 'right'
+          },
+          attrs: {
+            circle: {
+              fill: '#000000',
+              r: 5,
+              magnet: true
+            }
+          }
+        }
       }
     },
     z: 2
@@ -69,32 +114,76 @@ function element(x, y) {
   return el;
 }
 
+// Custom Link Definition
+joint.shapes.standard.Link.define('example.CustomLink', {
+    attrs: {
+        line: {
+            connection: true,
+            stroke: '#333333',
+            strokeWidth: 2,
+            strokeLinejoin: 'round'
+        }
+    },
+    connector: { name: 'rounded' },
+    router: {
+        name: 'normal'
+    },
+    anchors: {
+        source: function (sourceView, sourceMagnet, linkView) {
+            const bbox = sourceView.model.getBBox();
+            return {
+                x: bbox.x,
+                y: bbox.y + bbox.height / 2
+            };
+        },
+        target: function (targetView, targetMagnet, linkView) {
+            const bbox = targetView.model.getBBox();
+            return {
+                x: bbox.x + bbox.width,
+                y: bbox.y + bbox.height / 2
+            };
+        }
+    }
+});
+
+// In your link function
 function link(target, source) {
-  const l = new shapes.standard.Link({
-    source: { id: source.id },
-    target: { id: target.id },
-    z: 1
-  });
-  graph.addCell(l);
-  return l;
+    const l = new joint.shapes.example.CustomLink({
+        source: { id: source.id },
+        target: { id: target.id },
+        attrs: {
+            line: { 
+                stroke: color,
+                class: 'animated-dash' // Add class to line for animation
+            }
+        }
+    });
+    graph.addCell(l);
+    return l;
 }
 
-const el1 = element(300, 50);
-const el2 = element(100, 200);
-const el3 = element(300, 200);
-const el4 = element(500, 200);
-const el5 = element(300, 350);
-const el6 = element(40, 350);
-const el7 = element(160, 350);
-const el8 = element(160, 500);
 
-link(el1, el3);
-link(el1, el2);
-link(el1, el4);
-link(el2, el6);
-link(el2, el7);
-link(el3, el5);
-link(el7, el8);
+// Define Elements
+
+const centerBox = element(300, 200, 'Gravio');
+
+const leftBox1 = element(100, 100, 'Left 1');
+const leftBox2 = element(100, 200, 'Left 2');
+const leftBox3 = element(100, 300, 'Left 3');
+
+const rightBox1 = element(500, 100, 'Right 1');
+const rightBox2 = element(500, 200, 'Right 2');
+const rightBox3 = element(500, 300, 'Right 3');
+
+// Define Links
+
+link(centerBox, leftBox1, 'left', 'right');
+link(centerBox, leftBox2, 'left', 'right');
+link(centerBox, leftBox3, 'left', 'right');
+
+link(rightBox1, centerBox, 'right', 'left');
+link(rightBox2, centerBox, 'right', 'left');
+link(rightBox3, centerBox, 'right', 'left');
 
 paper.unfreeze();
 
@@ -139,4 +228,4 @@ paper.on("element:pointerclick", (elementView) =>
 );
 paper.on("blank:pointerclick", (elementView) => selectElement(null));
 
-selectElement(el2);
+selectElement(leftBox1);
